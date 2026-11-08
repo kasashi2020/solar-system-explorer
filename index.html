@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#080f20">
+<title>Solar System Explorer</title>
+<meta name="description" content="惑星・衛星の位置と月の満ち欠けを観察できる無料の太陽系シミュレーター">
+<style>
+:root{color-scheme:dark;--bg:#080f20;--panel:#111d33;--line:#293a56;--text:#edf3ff;--muted:#a9b8d0;--accent:#80b9ff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% -15%,#1a3154 0%,var(--bg) 55%);color:var(--text);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{padding:28px 18px 18px;text-align:center}h1{font-size:clamp(25px,5vw,38px);margin:0 0 5px;letter-spacing:.02em}header p{margin:0;color:var(--muted)}
+main{max-width:1100px;margin:auto;padding:0 14px 38px}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 16px}.tab,button,select,input{font:inherit}.tab,button{border:1px solid var(--line);border-radius:10px;background:#172640;color:var(--text);padding:9px 13px;cursor:pointer}.tab.active,button.primary{background:#23446d;border-color:#6099dc}.tab:hover,button:hover{filter:brightness(1.15)}
+.panel{background:linear-gradient(145deg,rgba(22,37,62,.96),rgba(13,25,44,.97));border:1px solid var(--line);border-radius:15px;padding:15px;margin-bottom:14px;box-shadow:0 12px 30px #0002}.panel h2{font-size:18px;margin:0 0 9px}.sub{color:var(--muted);font-size:13px}.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.controls input[type=date],select{background:#0c1930;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px}.controls input[type=range]{flex:1;min-width:160px;accent-color:var(--accent)}canvas{display:block;width:100%;height:auto;border-radius:10px;background:#071225}.legend{display:flex;gap:15px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin-top:8px}.planet-buttons{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}.planet-buttons button{font-size:13px;padding:7px 10px}.planet-buttons button.selected{outline:2px solid var(--accent);background:#24466c}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}.phase-result{text-align:center;padding:5px}.phase-result strong{display:block;font-size:22px}.phase-result .age{color:var(--muted)}.hidden{display:none!important}.note{font-size:12px;color:var(--muted);line-height:1.6}.moon-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:5px 16px}.moon-row{display:flex;justify-content:space-between;border-bottom:1px solid var(--line);padding:5px 0;font-size:13px}.footer{text-align:center;color:var(--muted);font-size:12px;padding:10px}
+@media(min-width:760px){.split{display:grid;grid-template-columns:1.15fr .85fr;gap:14px}.split .panel{margin-bottom:14px}}
+</style>
+</head>
+<body>
+<header><h1>☀ Solar System Explorer</h1><p>惑星・衛星の位置と、月の満ち欠けを観察しよう</p></header>
+<main>
+<div class="panel">
+ <div class="controls"><label for="date"><b>観測日</b></label><input id="date" type="date"><button id="back">− 1日</button><button id="today">今日</button><button id="forward">＋ 1日</button><button id="play" class="primary">▶ 時間を進める</button></div>
+ <div class="sub" id="dateLabel" style="margin-top:8px"></div>
+</div>
+<nav class="tabs"><button class="tab active" data-tab="system">太陽系</button><button class="tab" data-tab="moons">惑星の衛星</button><button class="tab" data-tab="phases">月の満ち欠け</button></nav>
+<section id="system">
+ <div class="panel"><h2>太陽系の惑星</h2><canvas id="solar" width="900" height="650" aria-label="太陽を中心とする惑星軌道図"></canvas><div class="legend"><span>☀ 太陽</span><span>● 惑星</span><span>円：模式的な軌道</span></div><p class="note">惑星の軌道半径を圧縮して表示しています。位置は簡易的な円軌道計算による概算で、実際の天体暦・観測用の精密値ではありません。</p></div>
+ <div class="panel"><h2>惑星を選択</h2><div id="planetButtons" class="planet-buttons"></div><div id="planetInfo" class="sub"></div></div>
+</section>
+<section id="moons" class="hidden">
+ <div class="panel"><h2>衛星の公転位置（模式図）</h2><div class="controls"><label for="planetSelect">惑星</label><select id="planetSelect"></select></div><canvas id="moonOrbit" width="900" height="430"></canvas><div id="moonList" class="moon-list"></div><p class="note">主要衛星の公転周期をもとに位置を概算しています。軌道傾斜・離心率・摂動などは省略しています。</p></div>
+</section>
+<section id="phases" class="hidden">
+ <div class="split">
+  <div class="panel"><h2>太陽・地球・月の位置関係</h2><canvas id="phaseOrbit" width="700" height="430"></canvas><p class="note">上から見た模式図です。太陽光は左から右へ進みます。軌道・天体の大きさは縮尺どおりではありません。</p></div>
+  <div class="panel"><h2>地球から見た月</h2><canvas id="phaseView" width="400" height="330"></canvas><div class="phase-result"><strong id="phaseName">—</strong><span class="age" id="phaseAge">月齢 —</span><div id="illumination" class="sub"></div></div></div>
+ </div>
+ <div class="panel"><h2>月の公転を動かす</h2><div class="controls"><button id="phaseBack">◀ 1日</button><button id="phaseToday">今日</button><button id="phaseForward">1日 ▶</button><button id="phasePlay" class="primary">▶ 公転アニメーション</button></div><label class="controls" style="margin-top:14px"><span class="sub">月齢を調整</span><input id="phaseSlider" type="range" min="0" max="29.53059" step=".05"><output id="phaseValue">—</output></label><div class="controls" style="margin-top:10px"><button data-phase="0">新月</button><button data-phase="7.38265">上弦</button><button data-phase="14.7653">満月</button><button data-phase="22.14795">下弦</button></div></div>
+ <div class="panel"><h2>満ち欠けの順序</h2><div class="grid"><div>🌑 <b>新月</b><div class="sub">地球から明るい面がほぼ見えない</div></div><div>🌓 <b>上弦</b><div class="sub">右半分が明るく見える（北半球の一般的な見え方）</div></div><div>🌕 <b>満月</b><div class="sub">明るい面がほぼ全面見える</div></div><div>🌗 <b>下弦</b><div class="sub">左半分が明るく見える（北半球の一般的な見え方）</div></div></div><p class="note">月齢は基準新月からの経過日数を使った近似です。実際の月相・月齢は天体暦による値と少し異なる場合があります。</p></div>
+</section>
+<div class="footer">Solar System Explorer · 学習・観察用シミュレーター</div>
+</main>
+<script>
+(()=>{
+const $=id=>document.getElementById(id),dayMs=86400000,syn=29.530588853,epoch=Date.UTC(2000,0,6,18,14);
+const planets=[
+{name:'水星',a:.387,p:87.969,phase:252.25,color:'#aaa9a3',size:5,desc:'太陽に最も近い惑星。'}, {name:'金星',a:.723,p:224.701,phase:181.98,color:'#e5bd83',size:7,desc:'厚い大気に覆われた高温の惑星。'}, {name:'地球',a:1,p:365.256,phase:100.46,color:'#48a5ed',size:8,desc:'月を持つ、生命が確認されている惑星。'}, {name:'火星',a:1.524,p:686.98,phase:355.45,color:'#d87954',size:6,desc:'フォボスとダイモスの2衛星を持つ惑星。'}, {name:'木星',a:5.203,p:4332.59,phase:34.4,color:'#d4a77c',size:13,desc:'太陽系最大の惑星。'}, {name:'土星',a:9.537,p:10759.2,phase:50.08,color:'#dfc58b',size:11,desc:'美しい環を持つ巨大ガス惑星。'}, {name:'天王星',a:19.191,p:30688.5,phase:314.05,color:'#7acaca',size:9,desc:'自転軸が大きく傾いた氷惑星。'}, {name:'海王星',a:30.07,p:60182,phase:304.35,color:'#547cdb',size:9,desc:'太陽系で最も外側の惑星。'}];
+const moons={'地球':[['月',27.322,0,'#d0d0cb']], '火星':[['フォボス',.319,30,'#aaa'],['ダイモス',1.263,190,'#d1b9a0']], '木星':[['イオ',1.769,20,'#f4d18c'],['エウロパ',3.551,110,'#d7d4c7'],['ガニメデ',7.155,210,'#9c9a91'],['カリスト',16.689,290,'#77756f']], '土星':[['タイタン',15.945,35,'#e3b56f'],['レア',4.518,125,'#c5c3bb'],['エンケラドゥス',1.37,240,'#eee']], '天王星':[['ミランダ',1.413,10,'#c8c3bd'],['アリエル',2.52,80,'#d7d0c4'],['ウンブリエル',4.144,160,'#8c8a87'],['チタニア',8.706,240,'#b3a89a'],['オベロン',13.463,300,'#8f8981']], '海王星':[['トリトン',5.877,40,'#c8c6bc']]};
+let date=new Date(),selected=2,mainTimer=null,phaseTimer=null;
+const phaseDays=()=>((date.getTime()-epoch)/dayMs%syn+syn)%syn;
+const fmt=d=>d.toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'long',timeZone:'UTC'});
+function syncDate(){ $('date').value=date.toISOString().slice(0,10);$('dateLabel').textContent=fmt(date)+'（UTC基準）';}
+function setDate(d){date=d;syncDate();render();}
+function orbitPos(p){let a=(p.phase+(date.getTime()-Date.UTC(2000,0,1,12))/dayMs/p.p*360)*Math.PI/180;return [p.a*Math.cos(a),p.a*Math.sin(a)]}
+function text(ctx,t,x,y,color='#edf3ff',size=15){ctx.fillStyle=color;ctx.font=size+'px system-ui';ctx.fillText(t,x,y)}
+function drawSolar(){let c=$('solar'),g=c.getContext('2d'),w=c.width,h=c.height,cx=w/2,cy=h/2;g.clearRect(0,0,w,h);let scale=12.5;g.strokeStyle='#293a56';g.lineWidth=1;
+planets.forEach(p=>{let r=Math.sqrt(p.a)*scale*2.9+12;g.beginPath();g.arc(cx,cy,r,0,7);g.stroke()});
+g.fillStyle='#f6c453';g.beginPath();g.arc(cx,cy,14,0,7);g.fill();text(g,'太陽',cx+19,cy-13);
+planets.forEach((p,i)=>{let [x,y]=orbitPos(p),r=Math.sqrt(p.a)*scale*2.9+12,ang=Math.atan2(y,x),px=cx+r*Math.cos(ang),py=cy-r*Math.sin(ang);g.fillStyle=p.color;g.beginPath();g.arc(px,py,p.size,0,7);g.fill();if(i===selected){g.strokeStyle='#fff';g.lineWidth=2;g.beginPath();g.arc(px,py,p.size+5,0,7);g.stroke()}text(g,p.name,px+10,py-9,'#edf3ff',13)})}
+function renderPlanetButtons(){ $('planetButtons').innerHTML=planets.map((p,i)=>`<button data-i="${i}" class="${i===selected?'selected':''}"><span class="dot" style="background:${p.color}"></span>${p.name}</button>`).join('');$('planetButtons').querySelectorAll('button').forEach(b=>b.onclick=()=>{selected=+b.dataset.i;renderPlanetButtons();drawSolar();planetDetail();drawMoons()})}
+function planetDetail(){$('planetInfo').textContent=planets[selected].name+'：'+planets[selected].desc+' 軌道半径 約'+planets[selected].a+' AU／公転周期 約'+planets[selected].p.toLocaleString('ja-JP')+'日。'}
+function drawMoons(){let p=planets[+$('planetSelect').value],list=moons[p.name]||[],c=$('moonOrbit'),g=c.getContext('2d'),cx=450,cy=205;g.clearRect(0,0,c.width,c.height);g.fillStyle=p.color;g.beginPath();g.arc(cx,cy,18,0,7);g.fill();if(!list.length){text(g,'この惑星の主要衛星データは未収録です',220,275,'#a9b8d0');$('moonList').innerHTML='';return}
+list.forEach((m,i)=>{let r=65+i*39,ang=(m[2]+(date.getTime()-epoch)/dayMs/m[1]*360)*Math.PI/180;g.strokeStyle='#40516b';g.setLineDash([5,5]);g.beginPath();g.arc(cx,cy,r,0,7);g.stroke();g.setLineDash([]);let x=cx+Math.cos(ang)*r,y=cy-Math.sin(ang)*r;g.fillStyle=m[3];g.beginPath();g.arc(x,y,7,0,7);g.fill();text(g,m[0],x+12,y+4,'#edf3ff',14)});$('moonList').innerHTML=list.map(m=>`<div class="moon-row"><span>${m[0]}</span><span>${m[1]}日で公転</span></div>`).join('')}
+function phaseName(p){if(p<1.35||p>syn-1.35)return'新月';if(p<5.1)return'三日月（満ちていく月）';if(p<9.1)return'上弦の月';if(p<13.2)return'十三夜（満月前）';if(p<16.3)return'満月';if(p<20.4)return'寝待月（欠けていく月）';if(p<24.5)return'下弦の月';return'有明月（細く欠けた月）'}
+function drawPhase(){let p=phaseDays(),a=p/syn*2*Math.PI,illum=(1-Math.cos(a))/2;
+let c=$('phaseOrbit'),g=c.getContext('2d'),cx=350,cy=215,R=125;g.clearRect(0,0,c.width,c.height);g.strokeStyle='#435675';g.beginPath();g.arc(cx,cy,R,0,7);g.stroke();g.fillStyle='#f6c453';g.beginPath();g.arc(60,cy,25,0,7);g.fill();text(g,'太陽',32,cy+48);g.strokeStyle='#e6b84e';g.setLineDash([6,6]);g.beginPath();g.moveTo(90,cy);g.lineTo(660,cy);g.stroke();g.setLineDash([]);g.fillStyle='#448edb';g.beginPath();g.arc(cx,cy,18,0,7);g.fill();text(g,'地球',cx-20,cy+44);let mx=cx+R*Math.cos(a),my=cy-R*Math.sin(a);g.fillStyle='#d0d0cb';g.beginPath();g.arc(mx,my,11,0,7);g.fill();text(g,'月',mx+15,my-10);text(g,'太陽光 →',490,cy-14,'#e6c77e');
+let v=$('phaseView'),q=v.getContext('2d'),x=200,y=155,r=93;q.clearRect(0,0,v.width,v.height);q.fillStyle='#252d3b';q.beginPath();q.arc(x,y,r,0,7);q.fill();q.save();q.beginPath();q.arc(x,y,r,0,7);q.clip();q.fillStyle='#eeeadd';let k=Math.cos(a),lim=k*r;
+if(p<syn/2){q.beginPath();q.arc(x,y,r,-Math.PI/2,Math.PI/2);q.ellipse(x+lim,y,Math.abs(Math.sin(a))*r,r,0,Math.PI/2,-Math.PI/2,true);q.fill()}else{q.beginPath();q.arc(x,y,r,Math.PI/2,Math.PI*1.5);q.ellipse(x+lim,y,Math.abs(Math.sin(a))*r,r,0,-Math.PI/2,Math.PI/2,true);q.fill()}q.restore();q.strokeStyle='#7c8798';q.beginPath();q.arc(x,y,r,0,7);q.stroke();text(q,'地球から見た月',145,290,'#a9b8d0',14);
+$('phaseName').textContent=phaseName(p);$('phaseAge').textContent='月齢 '+p.toFixed(1)+'日';$('illumination').textContent='月面の照明割合（幾何学的近似） '+(illum*100).toFixed(1)+'%';$('phaseSlider').value=p;$('phaseValue').textContent=p.toFixed(1)+'日'}
+function render(){syncDate();drawSolar();planetDetail();drawMoons();drawPhase()}
+function setTab(name){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));['system','moons','phases'].forEach(id=>$(id).classList.toggle('hidden',id!==name))}
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
+$('date').onchange=e=>{if(e.target.value)setDate(new Date(e.target.value+'T12:00:00Z'))};$('back').onclick=()=>setDate(new Date(date.getTime()-dayMs));$('forward').onclick=()=>setDate(new Date(date.getTime()+dayMs));$('today').onclick=()=>setDate(new Date());
+$('play').onclick=()=>{if(mainTimer){clearInterval(mainTimer);mainTimer=null;$('play').textContent='▶ 時間を進める'}else{$('play').textContent='⏸ 停止';mainTimer=setInterval(()=>setDate(new Date(date.getTime()+7*dayMs)),700)}};
+$('planetSelect').innerHTML=planets.map((p,i)=>`<option value="${i}">${p.name}</option>`).join('');$('planetSelect').value=2;$('planetSelect').onchange=drawMoons;
+$('phaseBack').onclick=()=>setDate(new Date(date.getTime()-dayMs));$('phaseForward').onclick=()=>setDate(new Date(date.getTime()+dayMs));$('phaseToday').onclick=()=>setDate(new Date());
+$('phasePlay').onclick=()=>{if(phaseTimer){clearInterval(phaseTimer);phaseTimer=null;$('phasePlay').textContent='▶ 公転アニメーション'}else{$('phasePlay').textContent='⏸ 停止';phaseTimer=setInterval(()=>setDate(new Date(date.getTime()+dayMs)),250)}};
+$('phaseSlider').oninput=e=>{let target=+e.target.value,cur=phaseDays();date=new Date(date.getTime()+(target-cur)*dayMs);render()};
+document.querySelectorAll('[data-phase]').forEach(b=>b.onclick=()=>{let target=+b.dataset.phase,cur=phaseDays();date=new Date(date.getTime()+((target-cur+syn)%syn)*dayMs);render()});
+renderPlanetButtons();setDate(new Date());
+})();
+</script>
+</body></html>
